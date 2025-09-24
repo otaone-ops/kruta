@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard พฤติกรรมผู้บริโภค</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+            text-align: center;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+        .card-title {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #6b7280;
+            margin-bottom: 0.5rem;
+        }
+        .card-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        .chart-container {
+            background-color: #ffffff;
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .table-container {
+            background-color: #ffffff;
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        th {
+            background-color: #f9fafb;
+            color: #4b5563;
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        tbody tr:hover {
+            background-color: #f3f4f6;
+        }
+        .filter-input {
+            width: 100%;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .filter-input:focus {
+            border-color: #2563eb;
+        }
+        .initial-message {
+            text-align: center;
+            padding: 2rem;
+            color: #4b5563;
+            font-size: 1.25rem;
+        }
+        .url-input-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .url-input {
+            flex-grow: 1;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db;
+        }
+        .load-btn {
+            background-color: #2563eb;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .load-btn:hover {
+            background-color: #1d4ed8;
+        }
+        .loading-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            min-height: 300px;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #2563eb;
+            animation: spin 1s ease infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1 class="text-4xl font-bold text-gray-900 text-center mb-8">Dashboard พฤติกรรมผู้บริโภค</h1>
+
+        <!-- URL Input Section -->
+        <div class="flex flex-col items-center justify-center p-6 bg-white border-2 border-dashed border-gray-300 rounded-xl mb-8">
+            <p class="text-gray-500 mb-4">โปรดวาง URL ของไฟล์ CSV จาก Google Sheets ด้านล่าง</p>
+            <div class="url-input-container w-full">
+                <input type="text" id="urlInput" class="url-input" placeholder="วาง URL CSV ที่นี่...">
+                <button id="loadUrlBtn" class="load-btn">โหลดข้อมูล</button>
+            </div>
+        </div>
+
+        <!-- Overview Cards -->
+        <div id="dashboard-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 hidden">
+            <div class="card">
+                <p class="card-title">จำนวนผู้ใช้งานทั้งหมด</p>
+                <div id="total-users" class="card-value">0</div>
+            </div>
+            <div class="card">
+                <p class="card-title">ความพึงพอใจเฉลี่ย</p>
+                <div id="avg-satisfaction" class="card-value">0.00</div>
+            </div>
+            <div class="card">
+                <p class="card-title">คะแนนการแนะนำเฉลี่ย</p>
+                <div id="avg-recommendation" class="card-value">0.00</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div id="dashboard-charts" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 hidden">
+            <div class="chart-container">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">จำนวนผู้ใช้งานต่อแพลตฟอร์ม</h2>
+                <canvas id="platformChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">การใช้จ่ายเฉลี่ยต่อแพลตฟอร์ม</h2>
+                <canvas id="spendingChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div id="dashboard-table" class="table-container hidden">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">ข้อมูลผู้บริโภคทั้งหมด</h2>
+            <div class="mb-4">
+                <input type="text" id="filterInput" class="filter-input" placeholder="ค้นหาข้อมูล (ชื่อ, แพลตฟอร์ม, หมวดหมู่ ฯลฯ)">
+            </div>
+            <div id="tableContent"></div>
+        </div>
+        
+        <div id="initial-message" class="initial-message">
+            <p>กรุณาวาง URL ของไฟล์ CSV และกดโหลดข้อมูล</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlInputEl = document.getElementById('urlInput');
+            const loadUrlBtnEl = document.getElementById('loadUrlBtn');
+            const dashboardCardsEl = document.getElementById('dashboard-cards');
+            const dashboardChartsEl = document.getElementById('dashboard-charts');
+            const dashboardTableEl = document.getElementById('dashboard-table');
+            const initialMessageEl = document.getElementById('initial-message');
+
+            const totalUsersEl = document.getElementById('total-users');
+            const avgSatisfactionEl = document.getElementById('avg-satisfaction');
+            const avgRecommendationEl = document.getElementById('avg-recommendation');
+            const platformChartCtx = document.getElementById('platformChart').getContext('2d');
+            const spendingChartCtx = document.getElementById('spendingChart').getContext('2d');
+            const tableContentEl = document.getElementById('tableContent');
+            const filterInputEl = document.getElementById('filterInput');
+
+            let allData = [];
+            let platformChartInstance;
+            let spendingChartInstance;
+            
+            // Set the default URL to the user-provided one
+            const defaultUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTJADwZbZVbUdqc9h5TXxvxw1K_TxHxsrBTvlhibmUSoQbuyIolSicVjqzwv9C2e7FEud_bXR6p_lxs/pub?gid=0&single=true&output=csv';
+            urlInputEl.value = defaultUrl;
+
+            // Function to fetch and process CSV data from a URL
+            async function fetchData(url) {
+                try {
+                    initialMessageEl.innerHTML = '<div class="loading-container"><div class="spinner"></div></div><p class="mt-4">กำลังโหลดข้อมูล...</p>';
+                    dashboardCardsEl.classList.add('hidden');
+                    dashboardChartsEl.classList.add('hidden');
+                    dashboardTableEl.classList.add('hidden');
+
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const csvText = await response.text();
+                    return parseCSV(csvText);
+                } catch (error) {
+                    console.error('Error fetching data:', error);
+                    initialMessageEl.innerHTML = `<p class="text-red-500">เกิดข้อผิดพลาดในการโหลดข้อมูล: ${error.message}</p>`;
+                    return [];
+                }
+            }
+
+            // Function to parse CSV text into a JavaScript object
+            function parseCSV(csvText) {
+                const rows = csvText.split('\n').map(row => row.trim()).filter(row => row.length > 0);
+                if (rows.length < 2) return [];
+                const headers = rows[0].split(',').map(header => header.trim());
+                const data = rows.slice(1).map(row => {
+                    let obj = {};
+                    const values = row.split(',').map(val => val.trim());
+                    headers.forEach((header, i) => {
+                        obj[header] = values[i] || '';
+                    });
+                    return obj;
+                }).filter(row => row.customer_id);
+                return data;
+            }
+
+            // Function to render the dashboard with the given data
+            function renderDashboard(data) {
+                if (data.length === 0) {
+                    initialMessageEl.textContent = 'ไม่พบข้อมูลในไฟล์ CSV';
+                    return;
+                }
+
+                initialMessageEl.classList.add('hidden');
+                dashboardCardsEl.classList.remove('hidden');
+                dashboardChartsEl.classList.remove('hidden');
+                dashboardTableEl.classList.remove('hidden');
+
+                totalUsersEl.textContent = data.length.toLocaleString();
+                const totalSatisfaction = data.reduce((sum, row) => sum + (parseFloat(row.satisfaction_score) || 0), 0);
+                avgSatisfactionEl.textContent = (totalSatisfaction / data.length).toFixed(2);
+                const totalRecommendation = data.reduce((sum, row) => sum + (parseFloat(row.recommendation_likelihood) || 0), 0);
+                avgRecommendationEl.textContent = (totalRecommendation / data.length).toFixed(2);
+
+                if (platformChartInstance) platformChartInstance.destroy();
+                const platformCounts = data.reduce((counts, row) => {
+                    const platform = row.preferred_platform || 'ไม่ระบุ';
+                    counts[platform] = (counts[platform] || 0) + 1;
+                    return counts;
+                }, {});
+                platformChartInstance = new Chart(platformChartCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(platformCounts),
+                        datasets: [{
+                            label: 'จำนวนผู้ใช้งาน',
+                            data: Object.values(platformCounts),
+                            backgroundColor: '#2563eb',
+                            borderColor: '#1e40af',
+                            borderWidth: 1,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+                        scales: { y: { beginAtZero: true, title: { display: true, text: 'จำนวนผู้ใช้งาน' } } }
+                    }
+                });
+
+                if (spendingChartInstance) spendingChartInstance.destroy();
+                const platformSpending = data.reduce((sums, row) => {
+                    const platform = row.preferred_platform || 'ไม่ระบุ';
+                    sums[platform] = (sums[platform] || 0) + (parseFloat(row.avg_spending) || 0);
+                    return sums;
+                }, {});
+                const avgSpending = Object.keys(platformSpending).map(platform => {
+                    const count = platformCounts[platform] || 1;
+                    return platformSpending[platform] / count;
+                });
+                spendingChartInstance = new Chart(spendingChartCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(platformSpending),
+                        datasets: [{
+                            label: 'ค่าใช้จ่ายเฉลี่ย',
+                            data: avgSpending,
+                            backgroundColor: '#3b82f6',
+                            borderColor: '#1d4ed8',
+                            borderWidth: 1,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+                        scales: { y: { beginAtZero: true, title: { display: true, text: 'ค่าใช้จ่ายเฉลี่ย (บาท)' } } }
+                    }
+                });
+
+                function renderTable(dataToRender) {
+                    let tableHTML = `
+                        <table class="w-full">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>อายุ</th>
+                                    <th>เพศ</th>
+                                    <th>ระดับรายได้</th>
+                                    <th>แพลตฟอร์มที่ชอบ</th>
+                                    <th>หมวดหมู่สินค้า</th>
+                                    <th>คะแนนความพึงพอใจ</th>
+                                    <th>ค่าใช้จ่ายเฉลี่ย (บาท)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    dataToRender.forEach(row => {
+                        tableHTML += `
+                            <tr>
+                                <td>${row.customer_id || '-'}</td>
+                                <td>${row.age || '-'}</td>
+                                <td>${row.gender || '-'}</td>
+                                <td>${row.income_level || '-'}</td>
+                                <td>${row.preferred_platform || '-'}</td>
+                                <td>${row.product_category || '-'}</td>
+                                <td>${row.satisfaction_score || '-'}</td>
+                                <td>${parseInt(row.avg_spending || 0).toLocaleString()}</td>
+                            </tr>
+                        `;
+                    });
+                    tableHTML += `</tbody></table>`;
+                    tableContentEl.innerHTML = tableHTML;
+                }
+                renderTable(data);
+
+                filterInputEl.addEventListener('input', () => {
+                    const filterValue = filterInputEl.value.toLowerCase();
+                    const filteredData = data.filter(row => {
+                        return Object.values(row).some(value => String(value).toLowerCase().includes(filterValue));
+                    });
+                    renderTable(filteredData);
+                });
+            }
+
+            // Event listener for the "Load Data" button
+            loadUrlBtnEl.addEventListener('click', async () => {
+                const url = urlInputEl.value;
+                if (!url) {
+                    initialMessageEl.textContent = 'กรุณาใส่ URL';
+                    return;
+                }
+                allData = await fetchData(url);
+                renderDashboard(allData);
+            });
+            
+            // Load data automatically on page load using the default URL
+            (async () => {
+                allData = await fetchData(defaultUrl);
+                renderDashboard(allData);
+            })();
+        });
+    </script>
+</body>
+</html>
